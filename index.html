@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Wijnkelder</title>
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Wijnkelder" />
+  <meta name="theme-color" content="#8B1A1A" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #f5f0eb; font-family: Georgia, serif; }
+    #root { padding-bottom: env(safe-area-inset-bottom); }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+  <script type="text/babel">
+const { useState, useRef, useCallback, useEffect } = React;
+
+const CATEGORIES = ["Rood", "Wit", "Rosé", "Mousseux", "Dessert", "Fortified"];
+const LANDEN = ["Italië", "Frankrijk", "Spanje", "Portugal", "Duitsland", "Oostenrijk", "Nederland", "Argentinië", "Chili", "Zuid-Afrika", "Australië", "Nieuw-Zeeland", "VS", "Anders"];
+const DRUIVEN = ["Cabernet Sauvignon", "Merlot", "Pinot Noir", "Syrah/Shiraz", "Sangiovese", "Tempranillo", "Nebbiolo", "Chardonnay", "Sauvignon Blanc", "Riesling", "Pinot Gris", "Grenache", "Malbec", "Zinfandel", "Viognier", "Chenin Blanc", "Anders"];
+const ETEN = ["Rood vlees", "Wit vlees", "Vis", "Schaaldieren", "Pasta", "Kaas", "Groenten", "Wild", "Charcuterie", "Dessert", "Aperitief"];
+const CAPACITEITEN = ["37.5 cl", "75 cl", "1.5 L", "3 L"];
+const JAREN = Array.from({ length: 50 }, (_, i) => String(new Date().getFullYear() - i));
+
+const CAT_COLORS = {
+  Rood: "#8B1A1A", Wit: "#C8A000", Rosé: "#D4607A",
+  Mousseux: "#888", Dessert: "#C4A35A", Fortified: "#7B3F00",
+};
+
+const STORAGE_KEY = "wijnkelder_v1";
+
+const load = () => {
+  try {
+    const d = localStorage.getItem(STORAGE_KEY);
+    return d ? JSON.parse(d) : null;
+  } catch { return null; }
+};
+const save = (data) => {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch {}
+};
+
+const WijnBottle = ({ wijn, onOpen, onClick }) => {
+  const isEmpty = wijn.hoeveelheid === 0;
+  return (
+    <div onClick={() => onClick(wijn)} style={{
+      position: "relative", cursor: "pointer", borderRadius: 12, overflow: "hidden",
+      background: isEmpty ? "#f0ebe5" : "#faf6f2",
+      border: `1px solid ${isEmpty ? "#ddd" : (CAT_COLORS[wijn.categorie] || "#8B1A1A") + "44"}`,
+      aspectRatio: "2/3", transition: "transform 0.2s, box-shadow 0.2s",
+      boxShadow: isEmpty ? "none" : `0 4px 20px ${CAT_COLORS[wijn.categorie] || "#8B1A1A"}22`,
+    }}>
+      {wijn.foto
+        ? <img src={wijn.foto} alt={wijn.naam} style={{ width:"100%", height:"100%", objectFit:"cover", opacity: isEmpty ? 0.25 : 1 }} />
+        : <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center", background:`${CAT_COLORS[wijn.categorie]||"#8B1A1A"}11` }}>
+            <span style={{ fontSize:32, opacity:0.3 }}>🍷</span>
+          </div>
+      }
+      <div style={{ position:"absolute", bottom:0, left:0, right:0, height:"55%", background:"linear-gradient(to top,rgba(30,10,10,0.75),transparent)" }} />
+      <div style={{ position:"absolute", top:6, left:6, background:CAT_COLORS[wijn.categorie]||"#8B1A1A", color:"#fff", fontSize:9, fontWeight:700, padding:"2px 6px", borderRadius:20, letterSpacing:0.5, textTransform:"uppercase" }}>
+        {wijn.categorie}
+      </div>
+      <div style={{ position:"absolute", top:6, right:6, background:isEmpty?"#e0d5cc":"rgba(255,255,255,0.9)", color:isEmpty?"#aaa":"#8B4513", fontSize:11, fontWeight:700, padding:"2px 7px", borderRadius:20, border:`1px solid ${isEmpty?"#ddd":"#8B451344"}` }}>
+        {wijn.hoeveelheid}x
+      </div>
+      <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"6px 8px" }}>
+        <div style={{ color:"#fff", fontSize:11, fontWeight:600, lineHeight:1.2, textShadow:"0 1px 4px #000", overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{wijn.naam}</div>
+        <div style={{ color:"#D4AF37", fontSize:10, opacity:0.85 }}>{wijn.jaar}</div>
+      </div>
+      {!isEmpty && (
+        <button onClick={e => { e.stopPropagation(); onOpen(wijn.id); }} title="Open fles" style={{
+          position:"absolute", bottom:38, right:6, background:"rgba(139,26,26,0.85)",
+          border:"1px solid #8B1A1A", color:"#fff", fontSize:13, borderRadius:"50%",
+          width:26, height:26, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center",
+        }}>🍾</button>
+      )}
+      {isEmpty && (
+        <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center" }}>
+          <span style={{ color:"#bbb", fontSize:11, letterSpacing:1, textTransform:"uppercase" }}>leeg</span>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const Stars = ({ value, onChange }) => (
+  <div style={{ display:"flex", gap:4 }}>
+    {[1,2,3,4,5].map(s => (
+      <span key={s} onClick={() => onChange && onChange(s)} style={{ fontSize:22, cursor:onChange?"pointer":"default", color:s<=value?"#c0392b":"#ddd" }}>★</span>
+    ))}
+  </div>
+);
+
+const Field = ({ label, children }) => (
+  <div style={{ marginBottom:14 }}>
+    <label style={{ display:"block", color:"#8B1A1A", fontSize:11, fontWeight:600, marginBottom:5, letterSpacing:0.8, textTransform:"uppercase" }}>{label}</label>
+    {children}
+  </div>
+);
+
+const inputStyle = { width:"100%", background:"#f9f5f1", border:"1px solid #e0d5cc", borderRadius:8, color:"#2a1a1a", padding:"10px 12px", fontSize:14, boxSizing:"border-box", outline:"none", fontFamily:"Georgia,serif" };
+
+const Inp = ({ label, value, onChange, type="text", placeholder }) => (
+  <Field label={label}>
+    <input type={type} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} style={inputStyle}
+      onFocus={e=>e.target.style.borderColor="#8B1A1A"} onBlur={e=>e.target.style.borderColor="#e0d5cc"} />
+  </Field>
+);
+
+const Sel = ({ label, value, onChange, options, multi }) => {
+  if (multi) {
+    const vals = value||[];
+    return (
+      <Field label={label}>
+        <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+          {options.map(o => (
+            <button key={o} onClick={()=>onChange(vals.includes(o)?vals.filter(v=>v!==o):[...vals,o])} style={{
+              padding:"5px 11px", borderRadius:20, fontSize:12, cursor:"pointer",
+              background:vals.includes(o)?"#8B1A1A":"#f9f5f1",
+              color:vals.includes(o)?"#fff":"#666",
+              border:`1px solid ${vals.includes(o)?"#8B1A1A":"#e0d5cc"}`,
+            }}>{o}</button>
+          ))}
+        </div>
+      </Field>
+    );
+  }
+  return (
+    <Field label={label}>
+      <select value={value} onChange={e=>onChange(e.target.value)} style={{...inputStyle, color:value?"#2a1a1a":"#aaa"}}>
+        <option value="">Kiezen...</option>
+        {options.map(o=><option key={o} value={o}>{o}</option>)}
+      </select>
+    </Field>
+  );
+};
+
+const EMPTY = { naam:"", categorie:"Rood", jaar:String(new Date().getFullYear()), prijs:"", capaciteit:"75 cl", alcohol:"", land:"", regio:"", subregio:"", appellatie:"", wijnmaker:"", druif:[], eten:[], score:0, opslaglocatie:"", opmerkingen:"", hoeveelheid:1, foto:null };
+
+export default function App() {
+  const [wijnen, setWijnen] = useState(() => load() || []);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState(EMPTY);
+  const [detail, setDetail] = useState(null);
+  const [zoom, setZoom] = useState(0);
+  const [search, setSearch] = useState("");
+  const [filterCat, setFilterCat] = useState("");
+  const [editId, setEditId] = useState(null);
+  const fileRef = useRef();
+
+  useEffect(() => { save(wijnen); }, [wijnen]);
+
+  const cols = [3,4,5][zoom];
+  const sf = (k,v) => setForm(f=>({...f,[k]:v}));
+
+  const gefilterd = wijnen.filter(w => {
+    const q = search.toLowerCase();
+    return (!q || w.naam.toLowerCase().includes(q) || (w.wijnmaker||"").toLowerCase().includes(q) || (w.land||"").toLowerCase().includes(q))
+      && (!filterCat || w.categorie===filterCat);
+  });
+
+  const handleFoto = e => {
+    const f = e.target.files[0]; if (!f) return;
+    const r = new FileReader();
+    r.onload = ev => sf("foto", ev.target.result);
+    r.readAsDataURL(f);
+  };
+
+  const saveWijn = () => {
+    if (!form.naam.trim()) return;
+    if (editId) { setWijnen(ws=>ws.map(w=>w.id===editId?{...form,id:editId}:w)); setEditId(null); }
+    else { setWijnen(ws=>[...ws,{...form,id:Date.now()}]); }
+    setForm(EMPTY); setShowForm(false);
+  };
+
+  const openFles = useCallback(id => {
+    setWijnen(ws=>ws.map(w=>w.id===id?{...w,hoeveelheid:Math.max(0,w.hoeveelheid-1)}:w));
+  }, []);
+
+  const deleteWijn = id => { setWijnen(ws=>ws.filter(w=>w.id!==id)); setDetail(null); };
+
+  const startEdit = w => { setForm({...w}); setEditId(w.id); setDetail(null); setShowForm(true); };
+
+  const totaal = wijnen.reduce((a,w)=>a+w.hoeveelheid,0);
+  const waarde = wijnen.reduce((a,w)=>a+(parseFloat(w.prijs)||0)*w.hoeveelheid,0);
+
+  return (
+    <div style={{ minHeight:"100vh", background:"#f5f0eb", color:"#2a1a1a", fontFamily:"Georgia,serif" }}>
+      {/* Header */}
+      <div style={{ background:"linear-gradient(135deg,#fff5f0,#f5ede6)", borderBottom:"1px solid #c9856633", padding:"20px 16px 12px" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:14 }}>
+          <div>
+            <h1 style={{ margin:0, fontSize:24, color:"#8B1A1A", fontWeight:400, letterSpacing:2, textTransform:"uppercase" }}>🍷 Wijnkelder</h1>
+            <p style={{ margin:"3px 0 0", color:"#aaa", fontSize:12, letterSpacing:1 }}>{totaal} flessen · €{waarde.toFixed(0)}</p>
+          </div>
+          <button onClick={()=>{setForm(EMPTY);setEditId(null);setShowForm(true);}} style={{ background:"#8B1A1A", color:"#fff", border:"none", borderRadius:10, padding:"10px 16px", fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>
+            + Toevoegen
+          </button>
+        </div>
+        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Zoeken..." style={{ width:"100%", background:"#fff", border:"1px solid #e0d5cc", borderRadius:8, color:"#2a1a1a", padding:"8px 12px", fontSize:13, outline:"none", marginBottom:10, boxSizing:"border-box" }} />
+        <div style={{ display:"flex", gap:6, overflowX:"auto", paddingBottom:4, alignItems:"center" }}>
+          {["", ...CATEGORIES].map(c => (
+            <button key={c} onClick={()=>setFilterCat(c)} style={{
+              padding:"4px 12px", borderRadius:20, fontSize:11, cursor:"pointer", whiteSpace:"nowrap",
+              background:filterCat===c?(CAT_COLORS[c]||"#8B1A1A"):"#fff",
+              color:filterCat===c?"#fff":"#888",
+              border:`1px solid ${filterCat===c?(CAT_COLORS[c]||"#8B1A1A"):"#e0d5cc"}`,
+            }}>{c||"Alle"}</button>
+          ))}
+          <div style={{ marginLeft:"auto", display:"flex", gap:4 }}>
+            <button onClick={()=>setZoom(z=>Math.max(0,z-1))} style={{ background:"#f9f5f1", border:"1px solid #e0d5cc", color:"#888", borderRadius:6, padding:"4px 9px", cursor:"pointer", fontSize:15 }}>−</button>
+            <button onClick={()=>setZoom(z=>Math.min(2,z+1))} style={{ background:"#f9f5f1", border:"1px solid #e0d5cc", color:"#888", borderRadius:6, padding:"4px 9px", cursor:"pointer", fontSize:15 }}>+</button>
+          </div>
+        </div>
+      </div>
+
+      {/* Gallery */}
+      <div style={{ padding:10 }}>
+        {gefilterd.length===0
+          ? <div style={{ textAlign:"center", padding:"60px 20px", color:"#bbb" }}><div style={{ fontSize:40, marginBottom:10 }}>🍷</div><div>Geen wijnen gevonden</div></div>
+          : <div style={{ display:"grid", gridTemplateColumns:`repeat(${cols},1fr)`, gap:8 }}>
+              {gefilterd.map(w=><WijnBottle key={w.id} wijn={w} onOpen={openFles} onClick={setDetail}/>)}
+            </div>
+        }
+      </div>
+
+      {/* Detail */}
+      {detail && (() => {
+        const w = wijnen.find(x=>x.id===detail.id)||detail;
+        return (
+          <div onClick={()=>setDetail(null)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.55)", zIndex:100, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+            <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:"20px 20px 0 0", width:"100%", maxWidth:480, maxHeight:"88vh", overflowY:"auto", padding:20 }}>
+              <div style={{ display:"flex", gap:14, marginBottom:18 }}>
+                {w.foto
+                  ? <img src={w.foto} alt={w.naam} style={{ width:85, height:125, objectFit:"cover", borderRadius:10, flexShrink:0 }}/>
+                  : <div style={{ width:85, height:125, background:"#f9f5f1", borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><span style={{fontSize:30}}>🍷</span></div>
+                }
+                <div style={{ flex:1 }}>
+                  <span style={{ background:CAT_COLORS[w.categorie]||"#8B1A1A", color:"#fff", fontSize:10, padding:"2px 8px", borderRadius:20, textTransform:"uppercase" }}>{w.categorie}</span>
+                  <h2 style={{ margin:"6px 0 2px", color:"#8B1A1A", fontSize:17, fontWeight:400 }}>{w.naam}</h2>
+                  <div style={{ color:"#999", fontSize:12, marginBottom:8 }}>{w.jaar}{w.land?` · ${w.land}`:""}{w.regio?` · ${w.regio}`:""}</div>
+                  <Stars value={w.score}/>
+                  <div style={{ marginTop:10, display:"flex", alignItems:"center", gap:10 }}>
+                    <div style={{ color:"#8B1A1A", fontSize:20, fontWeight:700 }}>{w.hoeveelheid}x</div>
+                    {w.hoeveelheid>0 && (
+                      <button onClick={()=>{openFles(w.id);setDetail({...w,hoeveelheid:Math.max(0,w.hoeveelheid-1)});}}
+                        style={{ background:"#8B1A1A", color:"#fff", border:"none", borderRadius:8, padding:"6px 14px", fontSize:12, cursor:"pointer" }}>
+                        🍾 Open fles
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"8px 16px", marginBottom:14 }}>
+                {[["Wijnmaker",w.wijnmaker],["Prijs",w.prijs?`€${w.prijs}`:""],["Capaciteit",w.capaciteit],["Alcohol",w.alcohol?`${w.alcohol}%`:""],["Appellatie",w.appellatie],["Subregio",w.subregio],["Opslag",w.opslaglocatie]].filter(([,v])=>v).map(([k,v])=>(
+                  <div key={k}><div style={{ color:"#bbb", fontSize:10, textTransform:"uppercase", letterSpacing:0.8, marginBottom:2 }}>{k}</div><div style={{ color:"#555", fontSize:13 }}>{v}</div></div>
+                ))}
+              </div>
+              {w.druif?.length>0 && <div style={{ marginBottom:10 }}><div style={{ color:"#bbb", fontSize:10, textTransform:"uppercase", letterSpacing:0.8, marginBottom:5 }}>Druif</div><div style={{ display:"flex", flexWrap:"wrap", gap:4 }}>{w.druif.map(d=><span key={d} style={{ background:"#f9f5f1", border:"1px solid #e0d5cc", color:"#888", fontSize:11, padding:"3px 9px", borderRadius:20 }}>{d}</span>)}</div></div>}
+              {w.eten?.length>0 && <div style={{ marginBottom:10 }}><div style={{ color:"#bbb", fontSize:10, textTransform:"uppercase", letterSpacing:0.8, marginBottom:5 }}>Spijscombinaties</div><div style={{ display:"flex", flexWrap:"wrap", gap:4 }}>{w.eten.map(d=><span key={d} style={{ background:"#f9f5f1", border:"1px solid #e0d5cc", color:"#888", fontSize:11, padding:"3px 9px", borderRadius:20 }}>{d}</span>)}</div></div>}
+              {w.opmerkingen && <div style={{ background:"#f9f5f1", borderRadius:10, padding:"10px 14px", marginBottom:14, color:"#999", fontSize:13, fontStyle:"italic" }}>"{w.opmerkingen}"</div>}
+              <div style={{ display:"flex", gap:8 }}>
+                <button onClick={()=>startEdit(w)} style={{ flex:1, background:"#f9f5f1", border:"1px solid #e0d5cc", color:"#8B1A1A", borderRadius:10, padding:"10px", cursor:"pointer", fontSize:13 }}>✏️ Bewerken</button>
+                <button onClick={()=>deleteWijn(w.id)} style={{ background:"#fff0f0", border:"1px solid #8B1A1A44", color:"#8B1A1A", borderRadius:10, padding:"10px 14px", cursor:"pointer", fontSize:13 }}>🗑️</button>
+                <button onClick={()=>setDetail(null)} style={{ flex:1, background:"#f9f5f1", border:"1px solid #e0d5cc", color:"#888", borderRadius:10, padding:"10px", cursor:"pointer", fontSize:13 }}>Sluiten</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Formulier */}
+      {showForm && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(80,40,40,0.5)", zIndex:200, overflowY:"auto" }}>
+          <div style={{ background:"#fff", minHeight:"100vh", maxWidth:480, margin:"0 auto", padding:20 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20, borderBottom:"1px solid #ecddd4", paddingBottom:14 }}>
+              <h2 style={{ margin:0, color:"#8B1A1A", fontWeight:400, fontSize:19 }}>{editId?"Wijn bewerken":"Wijn toevoegen"}</h2>
+              <button onClick={()=>setShowForm(false)} style={{ background:"none", border:"none", color:"#aaa", fontSize:22, cursor:"pointer" }}>✕</button>
+            </div>
+
+            <Field label="Foto">
+              <div onClick={()=>fileRef.current.click()} style={{ border:"2px dashed #e0d5cc", borderRadius:12, height:130, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", overflow:"hidden", background:"#f5f0eb" }}>
+                {form.foto
+                  ? <img src={form.foto} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+                  : <div style={{ textAlign:"center", color:"#bbb" }}><div style={{ fontSize:26, marginBottom:5 }}>📷</div><div style={{ fontSize:12 }}>Tik om foto toe te voegen</div></div>
+                }
+              </div>
+              <input ref={fileRef} type="file" accept="image/*" onChange={handleFoto} style={{ display:"none" }}/>
+            </Field>
+
+            <Inp label="Naam van wijn *" value={form.naam} onChange={v=>sf("naam",v)} placeholder="bijv. Barolo Riserva"/>
+            <Sel label="Categorie" value={form.categorie} onChange={v=>sf("categorie",v)} options={CATEGORIES}/>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+              <Sel label="Jaar" value={form.jaar} onChange={v=>sf("jaar",v)} options={JAREN}/>
+              <Inp label="Prijs (€)" value={form.prijs} onChange={v=>sf("prijs",v)} type="number" placeholder="0.00"/>
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+              <Sel label="Capaciteit" value={form.capaciteit} onChange={v=>sf("capaciteit",v)} options={CAPACITEITEN}/>
+              <Inp label="Alcohol (%)" value={form.alcohol} onChange={v=>sf("alcohol",v)} type="number" placeholder="12.5"/>
+            </div>
+
+            <Field label="Hoeveelheid">
+              <div style={{ display:"flex", alignItems:"center", gap:14 }}>
+                <button onClick={()=>sf("hoeveelheid",Math.max(0,form.hoeveelheid-1))} style={{ width:38, height:38, background:"#f9f5f1", border:"1px solid #e0d5cc", color:"#2a1a1a", borderRadius:8, cursor:"pointer", fontSize:20 }}>−</button>
+                <span style={{ color:"#8B1A1A", fontSize:20, fontWeight:700, minWidth:28, textAlign:"center" }}>{form.hoeveelheid}</span>
+                <button onClick={()=>sf("hoeveelheid",form.hoeveelheid+1)} style={{ width:38, height:38, background:"#f9f5f1", border:"1px solid #e0d5cc", color:"#2a1a1a", borderRadius:8, cursor:"pointer", fontSize:20 }}>+</button>
+              </div>
+            </Field>
+
+            <div style={{ borderTop:"1px solid #ecddd4", margin:"14px 0", paddingTop:14 }}>
+              <div style={{ color:"#8B1A1A", fontSize:11, fontWeight:600, letterSpacing:1, marginBottom:12, textTransform:"uppercase" }}>Oorsprong</div>
+              <Sel label="Land" value={form.land} onChange={v=>sf("land",v)} options={LANDEN}/>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+                <Inp label="Regio" value={form.regio} onChange={v=>sf("regio",v)} placeholder="bijv. Toscane"/>
+                <Inp label="Subregio" value={form.subregio} onChange={v=>sf("subregio",v)} placeholder="bijv. Chianti"/>
+              </div>
+              <Inp label="Appellatie" value={form.appellatie} onChange={v=>sf("appellatie",v)} placeholder="bijv. Barolo DOCG"/>
+              <Inp label="Wijnmaker / Domein" value={form.wijnmaker} onChange={v=>sf("wijnmaker",v)} placeholder="bijv. Antinori"/>
+            </div>
+
+            <div style={{ borderTop:"1px solid #ecddd4", margin:"14px 0", paddingTop:14 }}>
+              <div style={{ color:"#8B1A1A", fontSize:11, fontWeight:600, letterSpacing:1, marginBottom:12, textTransform:"uppercase" }}>Overige informatie</div>
+              <Sel label="Druivensoort" value={form.druif} onChange={v=>sf("druif",v)} options={DRUIVEN} multi/>
+              <Sel label="Spijscombinaties" value={form.eten} onChange={v=>sf("eten",v)} options={ETEN} multi/>
+              <Inp label="Opslaglocatie" value={form.opslaglocatie} onChange={v=>sf("opslaglocatie",v)} placeholder="bijv. Rek A, positie 3"/>
+              <Field label="Score"><Stars value={form.score} onChange={v=>sf("score",v)}/></Field>
+              <Field label="Opmerkingen">
+                <textarea value={form.opmerkingen} onChange={e=>sf("opmerkingen",e.target.value)} placeholder="Tasting notes, bijzonderheden..." rows={3}
+                  style={{...inputStyle, resize:"vertical"}}/>
+              </Field>
+            </div>
+
+            <button onClick={saveWijn} disabled={!form.naam.trim()} style={{
+              width:"100%", background:form.naam.trim()?"#8B1A1A":"#e8e0d8",
+              color:form.naam.trim()?"#fff":"#bbb", border:"none", borderRadius:12,
+              padding:"14px", fontSize:15, cursor:form.naam.trim()?"pointer":"default",
+              fontFamily:"inherit", letterSpacing:0.5, marginBottom:30
+            }}>{editId?"✓ Wijzigingen opslaan":"✓ Wijn toevoegen"}</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+  </script>
+</body>
+</html>
