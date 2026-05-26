@@ -155,8 +155,46 @@ function inputEl(label, stateKey, type='text', placeholder='') {
   return fieldEl(label, inp);
 }
 
+function deleteCustomItem(type, naam) {
+  // Check how many wines use this item
+  const gebruiktIn = state.wijnen.filter(w => {
+    if (type === 'land') return w.land === naam;
+    if (type === 'druif') return w.druif && w.druif.includes(naam);
+    return false;
+  });
+  const label = type === 'land' ? 'land' : 'druif';
+  const msg1 = `Wil je "${naam}" verwijderen uit de lijst?`;
+  if (!confirm(msg1)) return;
+  if (gebruiktIn.length > 0) {
+    const msg2 = `Let op: ${gebruiktIn.length} wijn(en) hebben "${naam}" als ${label}. Dit veld wordt bij die wijnen leeggemaakt. Doorgaan?`;
+    if (!confirm(msg2)) return;
+    // Clear the field on affected wines
+    const wijnen = state.wijnen.map(w => {
+      if (type === 'land' && w.land === naam) return {...w, land: ''};
+      if (type === 'druif' && w.druif && w.druif.includes(naam)) return {...w, druif: w.druif.filter(d => d !== naam)};
+      return w;
+    });
+    state.wijnen = wijnen;
+    saveData(wijnen);
+  }
+  // Remove from custom list
+  if (type === 'land') {
+    state.custom.landen = (state.custom.landen||[]).filter(l => l !== naam);
+  } else {
+    state.custom.druiven = (state.custom.druiven||[]).filter(d => d !== naam);
+  }
+  saveCustom(state.custom);
+  // Clear form field if it was selected
+  if (state.form.land === naam) state.form.land = '';
+  if (state.form.druif_single === naam) state.form.druif_single = '';
+  render();
+}
+
 function selectEl(label, stateKey, options) {
   const value = state.form[stateKey] || '';
+  const customLijst = stateKey === 'land' ? (state.custom.landen||[]) : stateKey === 'druif_single' ? (state.custom.druiven||[]) : [];
+  const type = stateKey === 'land' ? 'land' : 'druif';
+
   const sel = h('select', {},
     h('option', {value:''}, 'Kiezen...'),
     ...options.filter(o=>o!=='Anders').map(o => {
@@ -169,6 +207,28 @@ function selectEl(label, stateKey, options) {
   sel.addEventListener('change', e => { state.form[stateKey] = e.target.value; render(); });
 
   const wrap = h('div', {}, sel);
+
+  // Show delete buttons for custom items
+  if (customLijst.length > 0) {
+    const customWrap = h('div', {style:{marginTop:'8px',display:'flex',flexWrap:'wrap',gap:'5px'}});
+    customLijst.forEach(item => {
+      const chip = h('div', {style:{display:'flex',alignItems:'center',gap:'4px',background:'#f9f5f1',border:'1px solid #e0d5cc',borderRadius:'20px',padding:'3px 8px 3px 10px',fontSize:'12px',color:'#666'}},
+        h('span',{}, item),
+        h('button', {
+          style:{background:'#e74c3c',color:'#fff',border:'none',borderRadius:'50%',width:'16px',height:'16px',fontSize:'10px',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:'0',lineHeight:'1'},
+          title:`Verwijder ${item}`
+        }, '×')
+      );
+      chip.querySelector('button').addEventListener('click', e => {
+        e.stopPropagation();
+        deleteCustomItem(type, item);
+      });
+      customWrap.appendChild(chip);
+    });
+    const customLabel = h('div',{style:{fontSize:'10px',color:'#bbb',textTransform:'uppercase',letterSpacing:'0.8px',marginBottom:'4px'}},'Eigen toevoegingen');
+    wrap.appendChild(customLabel);
+    wrap.appendChild(customWrap);
+  }
 
   // Show custom input when Anders is selected
   if (value === 'Anders') {
@@ -529,7 +589,11 @@ function doRender() {
   header.appendChild(topRow);
 
   const searchInp = h('input',{type:'text',placeholder:'Zoeken...',value:search,style:{width:'100%',background:'#fff',border:'1px solid #e0d5cc',borderRadius:'8px',color:'#2a1a1a',padding:'8px 12px',fontSize:'13px',outline:'none',marginBottom:'10px',boxSizing:'border-box'}});
-  searchInp.addEventListener('input', e => { state.search = e.target.value; render(); });
+  searchInp.addEventListener('input', e => { state.search = e.target.value; });
+  searchInp.addEventListener('input', () => {
+    clearTimeout(searchInp._t);
+    searchInp._t = setTimeout(() => doRender(), 300);
+  });
   header.appendChild(searchInp);
 
   // Filter + zoom in één blok: filters wrappen op 2 regels, zoom rechts ernaast
