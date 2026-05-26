@@ -194,41 +194,75 @@ function selectEl(label, stateKey, options) {
   const value = state.form[stateKey] || '';
   const customLijst = stateKey === 'land' ? (state.custom.landen||[]) : stateKey === 'druif_single' ? (state.custom.druiven||[]) : [];
   const type = stateKey === 'land' ? 'land' : 'druif';
+  const dropId = 'drop_' + stateKey;
 
-  const sel = h('select', {},
-    h('option', {value:''}, 'Kiezen...'),
-    ...options.filter(o=>o!=='Anders').map(o => {
-      const opt = h('option', {value:o}, o);
-      if (o === value) opt.selected = true;
-      return opt;
-    }),
-    (() => { const opt = h('option',{value:'Anders'},'Anders'); if(value==='Anders') opt.selected=true; return opt; })()
+  // Custom dropdown trigger
+  const trigger = h('div', {style:{
+    width:'100%', background:'#f9f5f1', border:'1px solid #e0d5cc', borderRadius:'8px',
+    color: value ? '#2a1a1a' : '#aaa', padding:'10px 12px', fontSize:'14px',
+    cursor:'pointer', display:'flex', justifyContent:'space-between', alignItems:'center',
+    fontFamily:'Georgia,serif', userSelect:'none'
+  }},
+    h('span', {}, value || 'Kiezen...'),
+    h('span', {style:{color:'#aaa', fontSize:'12px'}}, '▼')
   );
-  sel.addEventListener('change', e => { state.form[stateKey] = e.target.value; render(); });
 
-  const wrap = h('div', {}, sel);
+  // Dropdown list (hidden by default)
+  const dropdown = h('div', {style:{
+    display:'none', position:'absolute', left:'0', right:'0', zIndex:'1000',
+    background:'#fff', border:'1px solid #e0d5cc', borderRadius:'8px',
+    boxShadow:'0 4px 20px rgba(0,0,0,0.12)', maxHeight:'220px', overflowY:'auto',
+    marginTop:'2px'
+  }});
 
-  // Show delete buttons for custom items
-  if (customLijst.length > 0) {
-    const customWrap = h('div', {style:{marginTop:'8px',display:'flex',flexWrap:'wrap',gap:'5px'}});
-    customLijst.forEach(item => {
-      const chip = h('div', {style:{display:'flex',alignItems:'center',gap:'4px',background:'#f9f5f1',border:'1px solid #e0d5cc',borderRadius:'20px',padding:'3px 8px 3px 10px',fontSize:'12px',color:'#666'}},
-        h('span',{}, item),
-        h('button', {
-          style:{background:'#e74c3c',color:'#fff',border:'none',borderRadius:'50%',width:'16px',height:'16px',fontSize:'10px',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:'0',lineHeight:'1'},
-          title:`Verwijder ${item}`
-        }, '×')
-      );
-      chip.querySelector('button').addEventListener('click', e => {
+  const allOptions = [...options.filter(o=>o!=='Anders'), 'Anders'];
+  allOptions.forEach(o => {
+    const isCustom = customLijst.includes(o);
+    const row = h('div', {style:{
+      display:'flex', alignItems:'center', justifyContent:'space-between',
+      padding:'10px 12px', cursor:'pointer', fontSize:'14px',
+      background: o === value ? '#fff5f0' : '#fff',
+      color: o === value ? '#8B1A1A' : '#2a1a1a',
+      borderBottom:'1px solid #f5f0eb'
+    }});
+    const nameSpan = h('span', {}, o || 'Kiezen...');
+    row.appendChild(nameSpan);
+
+    if (isCustom) {
+      const delBtn = h('button', {style:{
+        background:'none', border:'none', color:'#e74c3c', fontSize:'16px',
+        cursor:'pointer', padding:'0 4px', lineHeight:'1', flexShrink:'0'
+      }}, '×');
+      delBtn.addEventListener('click', e => {
         e.stopPropagation();
-        deleteCustomItem(type, item);
+        dropdown.style.display = 'none';
+        deleteCustomItem(type, o);
       });
-      customWrap.appendChild(chip);
+      row.appendChild(delBtn);
+    }
+
+    row.addEventListener('click', () => {
+      state.form[stateKey] = o;
+      dropdown.style.display = 'none';
+      render();
     });
-    const customLabel = h('div',{style:{fontSize:'10px',color:'#bbb',textTransform:'uppercase',letterSpacing:'0.8px',marginBottom:'4px'}},'Eigen toevoegingen');
-    wrap.appendChild(customLabel);
-    wrap.appendChild(customWrap);
-  }
+    dropdown.appendChild(row);
+  });
+
+  // Toggle dropdown
+  trigger.addEventListener('click', e => {
+    e.stopPropagation();
+    const isOpen = dropdown.style.display !== 'none';
+    // Close all other dropdowns
+    document.querySelectorAll('.custom-dropdown-list').forEach(d => d.style.display = 'none');
+    dropdown.style.display = isOpen ? 'none' : 'block';
+  });
+  // Close on outside click
+  document.addEventListener('click', () => { dropdown.style.display = 'none'; }, {once: false});
+
+  dropdown.className = 'custom-dropdown-list';
+
+  const wrap = h('div', {style:{position:'relative'}}, trigger, dropdown);
 
   // Show custom input when Anders is selected
   if (value === 'Anders') {
