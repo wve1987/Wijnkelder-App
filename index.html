@@ -533,6 +533,8 @@ function doRender() {
   header.appendChild(searchInp);
 
   // Filter + zoom in één blok: filters wrappen op 2 regels, zoom rechts ernaast
+  const ROW1 = ['', 'Rood', 'Wit', 'Rosé'];
+  const ROW2 = ['Mousseux', 'Dessert', 'Fortified'];
   const filterZoomRow = h('div',{style:{display:'flex',alignItems:'center',gap:'8px'}});
 
   // Filter knoppen — wrappen op 2 regels
