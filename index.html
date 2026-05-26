@@ -533,24 +533,25 @@ function doRender() {
   header.appendChild(searchInp);
 
   // Filter + zoom in één blok: filters wrappen op 2 regels, zoom rechts ernaast
-  const filterZoomRow = h('div',{style:{display:'flex',alignItems:'flex-start',gap:'8px'}});
+  const filterZoomRow = h('div',{style:{display:'flex',alignItems:'center',gap:'8px'}});
 
   // Filter knoppen — wrappen op 2 regels
   const filterWrap = h('div',{style:{display:'flex',flexWrap:'wrap',gap:'5px',flex:'1'}});
-  ['', ...BASE_CATEGORIES].forEach(c => {
+  [...ROW1, ...ROW2].forEach(c => {
     const btn = h('button',{className:'filter-btn'+(filterCat===c?' active':''),style:{background:filterCat===c?(CAT_COLORS[c]||'#8B1A1A'):'#fff',borderColor:filterCat===c?(CAT_COLORS[c]||'#8B1A1A'):'#e0d5cc'}}, c||'Alle');
     btn.addEventListener('click', () => setState({filterCat:c}));
+    if (c === 'Mousseux') filterWrap.appendChild(h('div',{style:{flexBasis:'100%',height:'0'}}));
     filterWrap.appendChild(btn);
   });
   filterZoomRow.appendChild(filterWrap);
 
   // Zoom knoppen rechts
-  const zoomBtns = h('div',{style:{display:'flex',flexDirection:'column',gap:'4px',flexShrink:'0'}});
-  const zm = h('button',{style:{background:'#8B1A1A',color:'#fff',border:'none',borderRadius:'8px',width:'40px',height:'40px',fontSize:'20px',cursor:'pointer',fontFamily:'Georgia,serif',display:'flex',alignItems:'center',justifyContent:'center'}},'−');
+  const zoomBtns = h('div',{style:{display:'flex',flexDirection:'row',alignItems:'center',gap:'4px',flexShrink:'0'}});
+  const zm = h('button',{style:{background:'#8B1A1A',color:'#fff',border:'none',borderRadius:'8px',width:'36px',height:'36px',fontSize:'20px',cursor:'pointer',fontFamily:'Georgia,serif',display:'flex',alignItems:'center',justifyContent:'center'}},'−');
   zm.addEventListener('touchend', (e) => { e.preventDefault(); state.zoom = state.zoom+1; doRender(); });
   zm.addEventListener('click', (e) => { e.preventDefault(); state.zoom = state.zoom+1; doRender(); });
-  const zoomIndicator = h('span',{style:{fontSize:'11px',color:'#8B1A1A',fontWeight:'600',textAlign:'center'}}, String(cols)+'×');
-  const zp = h('button',{style:{background:'#8B1A1A',color:'#fff',border:'none',borderRadius:'8px',width:'40px',height:'40px',fontSize:'20px',cursor:'pointer',fontFamily:'Georgia,serif',display:'flex',alignItems:'center',justifyContent:'center'}},'+');
+  const zoomIndicator = h('span',{style:{fontSize:'11px',color:'#8B1A1A',fontWeight:'600',textAlign:'center',minWidth:'22px'}}, String(cols)+'×');
+  const zp = h('button',{style:{background:'#8B1A1A',color:'#fff',border:'none',borderRadius:'8px',width:'36px',height:'36px',fontSize:'20px',cursor:'pointer',fontFamily:'Georgia,serif',display:'flex',alignItems:'center',justifyContent:'center'}},'+');
   zp.addEventListener('touchend', (e) => { e.preventDefault(); state.zoom = Math.max(1, state.zoom-1); doRender(); });
   zp.addEventListener('click', (e) => { e.preventDefault(); state.zoom = Math.max(1, state.zoom-1); doRender(); });
   zoomBtns.appendChild(zm);
