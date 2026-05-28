@@ -51,6 +51,7 @@ const BASE_CATEGORIES = ["Rood","Wit","Rosé","Mousseux","Dessert","Fortified"];
 const BASE_LANDEN = ["Italië","Frankrijk","Spanje","Portugal","Duitsland","Oostenrijk","Nederland","Argentinië","Chili","Zuid-Afrika","Australië","Nieuw-Zeeland","VS","Anders"];
 const BASE_DRUIVEN = ["Cabernet Sauvignon","Merlot","Pinot Noir","Syrah/Shiraz","Sangiovese","Tempranillo","Nebbiolo","Chardonnay","Sauvignon Blanc","Riesling","Pinot Gris","Grenache","Malbec","Zinfandel","Viognier","Chenin Blanc","Anders"];
 const BASE_ETEN = ["Rood vlees","Wit vlees","Vis","Schaaldieren","Pasta","Kaas","Groenten","Wild","Charcuterie","Dessert","Aperitief"];
+const BASE_HERKOMST = ["Gekregen","AH","Plus","Aldi","Lidl","Gall & Gall","Hanos","Wijnzaak","Online","Anders"];
 const BASE_BEWARING = ["Nu drinken","1-2 jaar","3-5 jaar","5-10 jaar","10+ jaar","Anders"];
 const CAPACITEITEN = ["37.5 cl","75 cl","1.5 L","3 L"];
 const JAREN = Array.from({length:50},(_,i)=>String(new Date().getFullYear()-i));
@@ -58,10 +59,10 @@ const CAT_COLORS = {Rood:"#8B1A1A",Wit:"#C8A000",Rosé:"#D4607A",Mousseux:"#888"
 
 const loadData = () => { try { const d=localStorage.getItem(STORAGE_KEY); return d?JSON.parse(d):[]; } catch{return[];} };
 const saveData = (d) => { try{localStorage.setItem(STORAGE_KEY,JSON.stringify(d));}catch{} };
-const loadCustom = () => { try { const d=localStorage.getItem(CUSTOM_KEY); return d?JSON.parse(d):{landen:[],druiven:[],bewaring:[]}; } catch{return{landen:[],druiven:[],bewaring:[]};} };
+const loadCustom = () => { try { const d=localStorage.getItem(CUSTOM_KEY); return d?JSON.parse(d):{landen:[],druiven:[],bewaring:[],herkomst:[]}; } catch{return{landen:[],druiven:[],bewaring:[],herkomst:[]};} };
 const saveCustom = (d) => { try{localStorage.setItem(CUSTOM_KEY,JSON.stringify(d));}catch{} };
 
-const EMPTY = {naam:"",categorie:"Rood",jaar:String(new Date().getFullYear()),prijs:"",capaciteit:"75 cl",alcohol:"",land:"",regio:"",subregio:"",appellatie:"",wijnmaker:"",druif:[],druif_single:"",eten:[],score:0,opslaglocatie:"",bewaring:"",opmerkingen:"",hoeveelheid:1,foto:null};
+const EMPTY = {naam:"",categorie:"Rood",jaar:String(new Date().getFullYear()),prijs:"",capaciteit:"75 cl",alcohol:"",land:"",regio:"",subregio:"",appellatie:"",wijnmaker:"",druif:[],druif_single:"",eten:[],score:0,opslaglocatie:"",bewaring:"",herkomst:"",van_wie:"",opmerkingen:"",hoeveelheid:1,foto:null};
 
 let state = {
   wijnen: loadData(),
@@ -98,6 +99,17 @@ function getBewaring() {
 function addCustomBewaring(naam) {
   if (!naam.trim() || BASE_BEWARING.includes(naam)) return;
   const custom = {...state.custom, bewaring: [...new Set([...(state.custom.bewaring||[]), naam.trim()])]};
+  state.custom = custom;
+  saveCustom(custom);
+}
+function getHerkomst() {
+  const custom = state.custom.herkomst || [];
+  const base = BASE_HERKOMST.filter(d => d !== 'Anders');
+  return [...base, ...custom, 'Anders'];
+}
+function addCustomHerkomst(naam) {
+  if (!naam.trim() || BASE_HERKOMST.includes(naam)) return;
+  const custom = {...state.custom, herkomst: [...new Set([...(state.custom.herkomst||[]), naam.trim()])]};
   state.custom = custom;
   saveCustom(custom);
 }
@@ -197,6 +209,8 @@ function deleteCustomItem(type, naam) {
     state.custom.druiven = (state.custom.druiven||[]).filter(d => d !== naam);
   } else if (type === 'bewaring') {
     state.custom.bewaring = (state.custom.bewaring||[]).filter(d => d !== naam);
+  } else if (type === 'herkomst') {
+    state.custom.herkomst = (state.custom.herkomst||[]).filter(d => d !== naam);
   }
   saveCustom(state.custom);
   // Clear form field if it was selected
@@ -207,8 +221,8 @@ function deleteCustomItem(type, naam) {
 
 function selectEl(label, stateKey, options) {
   const value = state.form[stateKey] || '';
-  const customLijst = stateKey === 'land' ? (state.custom.landen||[]) : stateKey === 'druif_single' ? (state.custom.druiven||[]) : stateKey === 'bewaring' ? (state.custom.bewaring||[]) : [];
-  const type = stateKey === 'land' ? 'land' : stateKey === 'druif_single' ? 'druif' : 'bewaring';
+  const customLijst = stateKey === 'land' ? (state.custom.landen||[]) : stateKey === 'druif_single' ? (state.custom.druiven||[]) : stateKey === 'bewaring' ? (state.custom.bewaring||[]) : stateKey === 'herkomst' ? (state.custom.herkomst||[]) : [];
+  const type = stateKey === 'land' ? 'land' : stateKey === 'druif_single' ? 'druif' : stateKey === 'herkomst' ? 'herkomst' : 'bewaring';
   const dropId = 'drop_' + stateKey;
 
   // Custom dropdown trigger
@@ -290,6 +304,7 @@ function selectEl(label, stateKey, options) {
         if (stateKey === 'land') { addCustomLand(val); state.form[stateKey] = val; }
         if (stateKey === 'druif_single') { addCustomDruif(val); state.form[stateKey] = val; }
         if (stateKey === 'bewaring') { addCustomBewaring(val); state.form[stateKey] = val; }
+        if (stateKey === 'herkomst') { addCustomHerkomst(val); state.form[stateKey] = val; }
         render();
       }
     });
@@ -452,7 +467,7 @@ function renderDetail() {
   topRow.appendChild(info);
   modal.appendChild(topRow);
 
-  const details = [['Wijnmaker',w.wijnmaker],['Prijs',w.prijs?`€${w.prijs}`:''],['Capaciteit',w.capaciteit],['Alcohol',w.alcohol?`${w.alcohol}%`:''],['Appellatie',w.appellatie],['Subregio',w.subregio],['Opslag',w.opslaglocatie],['Bewaring',w.bewaring]].filter(([,v])=>v);
+  const details = [['Wijnmaker',w.wijnmaker],['Prijs',w.prijs?`€${w.prijs}`:''],['Capaciteit',w.capaciteit],['Alcohol',w.alcohol?`${w.alcohol}%`:''],['Appellatie',w.appellatie],['Subregio',w.subregio],['Opslag',w.opslaglocatie],['Bewaring',w.bewaring],['Herkomst',w.herkomst],['Van wie',w.van_wie]].filter(([,v])=>v);
   if (details.length) {
     modal.appendChild(h('div', {style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px 16px',marginBottom:'14px'}},
       ...details.map(([k,v]) => h('div',{},h('div',{style:{color:'#bbb',fontSize:'10px',textTransform:'uppercase',letterSpacing:'0.8px',marginBottom:'2px'}},k),h('div',{style:{color:'#555',fontSize:'13px'}},v)))
@@ -585,6 +600,8 @@ function renderForm() {
     multiSelectEl('Spijscombinaties','eten', BASE_ETEN, null),
     inputEl('Opslaglocatie','opslaglocatie','text','bijv. Rek A, positie 3'),
     selectEl('Bewaring', 'bewaring', getBewaring()),
+    selectEl('Herkomst', 'herkomst', getHerkomst()),
+    ...(state.form.herkomst === 'Gekregen' ? [inputEl('Van wie', 'van_wie', 'text', 'bijv. Jan en Marie')] : []),
     fieldEl('Score', stars(f.score, v=>{ state.form.score=v; render(); })),
     fieldEl('Opmerkingen', (() => {
       const ta = h('textarea',{placeholder:'Tasting notes, bijzonderheden...',rows:'3'}, f.opmerkingen||'');
