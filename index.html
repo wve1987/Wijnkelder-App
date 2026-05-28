@@ -51,7 +51,7 @@ const BASE_CATEGORIES = ["Rood","Wit","Rosé","Mousseux","Dessert","Fortified"];
 const BASE_LANDEN = ["Italië","Frankrijk","Spanje","Portugal","Duitsland","Oostenrijk","Nederland","Argentinië","Chili","Zuid-Afrika","Australië","Nieuw-Zeeland","VS","Anders"];
 const BASE_DRUIVEN = ["Cabernet Sauvignon","Merlot","Pinot Noir","Syrah/Shiraz","Sangiovese","Tempranillo","Nebbiolo","Chardonnay","Sauvignon Blanc","Riesling","Pinot Gris","Grenache","Malbec","Zinfandel","Viognier","Chenin Blanc","Anders"];
 const BASE_ETEN = ["Rood vlees","Wit vlees","Vis","Schaaldieren","Pasta","Kaas","Groenten","Wild","Charcuterie","Dessert","Aperitief"];
-const BASE_HERKOMST = ["Gekregen","AH","Plus","Aldi","Lidl","Gall & Gall","Hanos","Wijnzaak","Online","Anders"];
+const BASE_HERKOMST = ["Gekregen","AH","Plus","Aldi","Lidl","Gall & Gall","Hanos","Sligro","Online","Anders"];
 const BASE_BEWARING = ["Nu drinken","1-2 jaar","3-5 jaar","5-10 jaar","10+ jaar","Anders"];
 const CAPACITEITEN = ["37.5 cl","75 cl","1.5 L","3 L"];
 const JAREN = Array.from({length:50},(_,i)=>String(new Date().getFullYear()-i));
@@ -62,7 +62,7 @@ const saveData = (d) => { try{localStorage.setItem(STORAGE_KEY,JSON.stringify(d)
 const loadCustom = () => { try { const d=localStorage.getItem(CUSTOM_KEY); return d?JSON.parse(d):{landen:[],druiven:[],bewaring:[],herkomst:[]}; } catch{return{landen:[],druiven:[],bewaring:[],herkomst:[]};} };
 const saveCustom = (d) => { try{localStorage.setItem(CUSTOM_KEY,JSON.stringify(d));}catch{} };
 
-const EMPTY = {naam:"",categorie:"Rood",jaar:String(new Date().getFullYear()),prijs:"",capaciteit:"75 cl",alcohol:"",land:"",regio:"",subregio:"",appellatie:"",wijnmaker:"",druif:[],druif_single:"",eten:[],score:0,opslaglocatie:"",bewaring:"",herkomst:"",van_wie:"",opmerkingen:"",hoeveelheid:1,foto:null};
+const EMPTY = {naam:"",categorie:"Rood",jaar:String(new Date().getFullYear()),prijs:"",capaciteit:"75 cl",alcohol:"",land:"",regio:"",subregio:"",appellatie:"",wijnmaker:"",druif:[],druif_single:"",eten:[],score:0,opslaglocatie:"",bewaring:"",herkomst:"",van_wie:"",url:"",opmerkingen:"",hoeveelheid:1,foto:null};
 
 let state = {
   wijnen: loadData(),
@@ -473,6 +473,13 @@ function renderDetail() {
       ...details.map(([k,v]) => h('div',{},h('div',{style:{color:'#bbb',fontSize:'10px',textTransform:'uppercase',letterSpacing:'0.8px',marginBottom:'2px'}},k),h('div',{style:{color:'#555',fontSize:'13px'}},v)))
     ));
   }
+  if (w.url) {
+    const urlRow = h('div',{style:{marginBottom:'10px'}},
+      h('div',{style:{color:'#bbb',fontSize:'10px',textTransform:'uppercase',letterSpacing:'0.8px',marginBottom:'2px'}},'Website'),
+      h('a',{href:w.url,target:'_blank',style:{color:'#8B1A1A',fontSize:'13px',wordBreak:'break-all'}}, w.url)
+    );
+    modal.appendChild(urlRow);
+  }
   if (w.druif?.length) modal.appendChild(h('div',{style:{marginBottom:'10px'}},h('div',{style:{color:'#bbb',fontSize:'10px',textTransform:'uppercase',letterSpacing:'0.8px',marginBottom:'5px'}},'Druif'),h('div',{style:{display:'flex',flexWrap:'wrap',gap:'4px'}},...w.druif.map(d=>h('span',{className:'chip'},d)))));
   if (w.eten?.length) modal.appendChild(h('div',{style:{marginBottom:'10px'}},h('div',{style:{color:'#bbb',fontSize:'10px',textTransform:'uppercase',letterSpacing:'0.8px',marginBottom:'5px'}},'Spijscombinaties'),h('div',{style:{display:'flex',flexWrap:'wrap',gap:'4px'}},...w.eten.map(d=>h('span',{className:'chip'},d)))));
   if (w.opmerkingen) modal.appendChild(h('div',{style:{background:'#f9f5f1',borderRadius:'10px',padding:'10px 14px',marginBottom:'14px',color:'#999',fontSize:'13px',fontStyle:'italic'}},`"${w.opmerkingen}"`));
@@ -602,6 +609,7 @@ function renderForm() {
     selectEl('Bewaring', 'bewaring', getBewaring()),
     selectEl('Herkomst', 'herkomst', getHerkomst()),
     ...(state.form.herkomst === 'Gekregen' ? [inputEl('Van wie', 'van_wie', 'text', 'bijv. Jan en Marie')] : []),
+    ...(state.form.herkomst === 'Online' ? [inputEl('Website / URL', 'url', 'url', 'bijv. https://wijnvoordeel.nl')] : []),
     fieldEl('Score', stars(f.score, v=>{ state.form.score=v; render(); })),
     fieldEl('Opmerkingen', (() => {
       const ta = h('textarea',{placeholder:'Tasting notes, bijzonderheden...',rows:'3'}, f.opmerkingen||'');
