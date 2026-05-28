@@ -385,7 +385,8 @@ function wijnCard(wijn) {
   ));
   if (!isEmpty) {
     const btn = h('button', {className:'open-btn'}, '🍾');
-    btn.addEventListener('click', e => { e.stopPropagation(); openFles(wijn.id); });
+    btn.addEventListener('click', e => { e.stopPropagation(); e.preventDefault(); openFles(wijn.id); });
+    btn.addEventListener('touchend', e => { e.stopPropagation(); e.preventDefault(); openFles(wijn.id); });
     card.appendChild(btn);
   }
   if (isEmpty) {
@@ -396,10 +397,15 @@ function wijnCard(wijn) {
   return card;
 }
 
-function openFles(id) {
+function openFles(id, fromDetail) {
   const wijnen = state.wijnen.map(w => w.id===id ? {...w, hoeveelheid:Math.max(0,w.hoeveelheid-1)} : w);
   saveData(wijnen);
-  setState({wijnen, detail: wijnen.find(w=>w.id===id) || null});
+  if (fromDetail) {
+    setState({wijnen, detail: wijnen.find(w=>w.id===id) || null});
+  } else {
+    state.wijnen = wijnen;
+    doRender();
+  }
 }
 
 function saveWijn() {
@@ -460,7 +466,7 @@ function renderDetail() {
   );
   if (w.hoeveelheid > 0) {
     const ob = h('button', {style:{background:'#8B1A1A',color:'#fff',border:'none',borderRadius:'8px',padding:'6px 14px',fontSize:'12px',cursor:'pointer',fontFamily:'Georgia,serif'}}, '🍾 Open fles');
-    ob.addEventListener('click', () => openFles(w.id));
+    ob.addEventListener('click', () => openFles(w.id, true));
     qtyRow.appendChild(ob);
   }
   info.appendChild(qtyRow);
