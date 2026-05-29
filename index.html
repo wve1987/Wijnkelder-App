@@ -93,7 +93,12 @@ let state = {
 // ── Supabase helpers ──────────────────────────────────────
 async function loadWijnen() {
   const {data} = await sb.from('wijnen').select('*').order('created_at', {ascending:false});
-  state.wijnen = (data||[]).map(r => ({...r, druif: r.druif||[], eten: r.eten||[]}));
+  state.wijnen = (data||[]).map(r => ({
+    ...r,
+    druif: r.druif||[],
+    eten: r.eten||[],
+    foto: localStorage.getItem('foto_' + r.id) || null
+  }));
 }
 async function loadCustom() {
   const {data} = await sb.from('custom_opties').select('*').limit(1);
@@ -108,12 +113,20 @@ async function saveCustom() {
   }
 }
 async function saveWijnDb(wijn) {
-  const {id, ...rest} = wijn;
+  // Sla foto apart op in localStorage, niet in database (te groot)
+  const {id, foto, ...rest} = wijn;
+  if (foto) localStorage.setItem('foto_' + (id||'new'), foto);
+  
   if (id && !String(id).startsWith('local')) {
     const {data} = await sb.from('wijnen').update(rest).eq('id', id).select().single();
+    if (data && foto) data.foto = foto;
     return data;
   } else {
     const {data} = await sb.from('wijnen').insert({...rest, user_id: state.user.id}).select().single();
+    if (data && foto) {
+      localStorage.setItem('foto_' + data.id, foto);
+      data.foto = foto;
+    }
     return data;
   }
 }
@@ -308,8 +321,7 @@ async function saveWijn(){
   if(state.form.druif_single==='Anders'&&state.form.druif_single_custom){await addCustom('druiven',state.form.druif_single_custom);state.form.druif_single=state.form.druif_single_custom;}
   if(state.form.druif_single&&state.form.druif_single!=='Anders') state.form.druif=[state.form.druif_single];
   state.saving=true; doRender();
-  // Comprimeer foto naar klein formaat voor database (300px, 60% kwaliteit)
-  if(state.form.foto) state.form.foto = await compressFoto(state.form.foto, 300, 0.6);
+  // Foto wordt lokaal opgeslagen, niet in database
   const saved=await saveWijnDb(state.form);
   if(saved){
     if(state.editId) state.wijnen=state.wijnen.map(w=>w.id===state.editId?saved:w);
