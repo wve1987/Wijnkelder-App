@@ -282,12 +282,34 @@ async function openFles(id,fromDetail){
   await saveWijnDb(updated);
 }
 
+async function compressFoto(base64, maxSize, quality) {
+  if(!base64) return base64;
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      let w=img.width, h=img.height;
+      if(w>maxSize||h>maxSize){
+        if(w>h){h=Math.round(h*maxSize/w);w=maxSize;}
+        else{w=Math.round(w*maxSize/h);h=maxSize;}
+      }
+      const canvas=document.createElement('canvas');
+      canvas.width=w; canvas.height=h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => resolve(base64);
+    img.src = base64;
+  });
+}
+
 async function saveWijn(){
   if(!state.form.naam.trim()) return;
   if(state.form.land==='Anders'&&state.form.land_custom){await addCustom('landen',state.form.land_custom);state.form.land=state.form.land_custom;}
   if(state.form.druif_single==='Anders'&&state.form.druif_single_custom){await addCustom('druiven',state.form.druif_single_custom);state.form.druif_single=state.form.druif_single_custom;}
   if(state.form.druif_single&&state.form.druif_single!=='Anders') state.form.druif=[state.form.druif_single];
   state.saving=true; doRender();
+  // Comprimeer foto naar klein formaat voor database (300px, 60% kwaliteit)
+  if(state.form.foto) state.form.foto = await compressFoto(state.form.foto, 300, 0.6);
   const saved=await saveWijnDb(state.form);
   if(saved){
     if(state.editId) state.wijnen=state.wijnen.map(w=>w.id===state.editId?saved:w);
