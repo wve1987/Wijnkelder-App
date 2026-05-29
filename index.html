@@ -122,8 +122,8 @@ async function deleteWijnDb(id) {
 }
 
 // ── Custom option helpers ─────────────────────────────────
-function getLanden() { const c=state.custom.landen||[]; return [...BASE_LANDEN.filter(l=>l!=='Anders'),...c,'Anders']; }
-function getDruiven() { const c=state.custom.druiven||[]; return [...BASE_DRUIVEN.filter(d=>d!=='Anders'),...c,'Anders']; }
+function getLanden() { const c=state.custom.landen||[]; const all=[...new Set([...BASE_LANDEN.filter(l=>l!=='Anders'),...c])].sort((a,b)=>a.localeCompare(b,'nl')); return [...all,'Anders']; }
+function getDruiven() { const c=state.custom.druiven||[]; const all=[...new Set([...BASE_DRUIVEN.filter(d=>d!=='Anders'),...c])].sort((a,b)=>a.localeCompare(b,'nl')); return [...all,'Anders']; }
 function getBewaring() { const c=state.custom.bewaring||[]; return [...BASE_BEWARING.filter(d=>d!=='Anders'),...c,'Anders']; }
 function getHerkomst() { const c=state.custom.herkomst||[]; return [...BASE_HERKOMST.filter(d=>d!=='Anders'),...c,'Anders']; }
 
