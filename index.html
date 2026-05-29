@@ -375,8 +375,25 @@ function renderForm(){
       fotoBox.innerHTML='';
       fotoBox.appendChild(h('div',{style:{textAlign:'center',color:'#8B1A1A'}},h('div',{style:{fontSize:'22px',marginBottom:'6px'}},'🔍'),h('div',{style:{fontSize:'12px'}},'Etiket herkennen...')));
       try {
-        const imageData=base64.split(',')[1];
-        const mediaType=base64.split(';')[0].split(':')[1];
+        // Comprimeer foto naar max 800px en JPEG 0.7 kwaliteit
+        const compressed = await new Promise(resolve => {
+          const img = new Image();
+          img.onload = () => {
+            const maxSize = 800;
+            let w = img.width, h = img.height;
+            if (w > maxSize || h > maxSize) {
+              if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
+              else { w = Math.round(w * maxSize / h); h = maxSize; }
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = w; canvas.height = h;
+            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+            resolve(canvas.toDataURL('image/jpeg', 0.7));
+          };
+          img.src = ev.target.result;
+        });
+        const imageData=compressed.split(',')[1];
+        const mediaType='image/jpeg';
         const response=await fetch('/api/scan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image:imageData,mediaType})});
         const parsed=await response.json();
         if(parsed.error){
@@ -384,7 +401,7 @@ function renderForm(){
         } else {
           Object.assign(state.form,parsed,{foto:base64});
         }
-      } catch(err){/* foto bewaren */}
+      } catch(err){ alert('Scan fout: '+err.message); }
       doRender();
     };
     reader.readAsDataURL(file);
