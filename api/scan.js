@@ -1,10 +1,14 @@
-export const config = { runtime: 'edge' };
-
-export default async function handler(req) {
-  if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
 
   try {
-    const { image, mediaType } = await req.json();
+    const { image, mediaType } = req.body;
+
+    if (!image || !mediaType) {
+      return res.status(400).json({ error: 'Missing image or mediaType' });
+    }
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -19,19 +23,31 @@ export default async function handler(req) {
         messages: [{
           role: 'user',
           content: [
-            { type: 'image', source: { type: 'base64', media_type: mediaType, data: image } },
-            { type: 'text', text: 'Analyseer dit wijnetiket en geef ALLEEN een JSON object terug, geen uitleg. Formaat: {"naam":"","categorie":"Rood|Wit|Rosé|Mousseux|Dessert|Fortified","jaar":"","alcohol":"","land":"","regio":"","subregio":"","appellatie":"","wijnmaker":"","druif":[],"opmerkingen":""} Vul alleen in wat je zeker weet van het etiket. druif is een array van strings. Geef ALLEEN JSON terug.' }
+            {
+              type: 'image',
+              source: { type: 'base64', media_type: mediaType, data: image }
+            },
+            {
+              type: 'text',
+              text: 'Analyseer dit wijnetiket en geef ALLEEN een JSON object terug, geen uitleg, geen markdown. Formaat: {"naam":"","categorie":"Rood|Wit|Rosé|Mousseux|Dessert|Fortified","jaar":"","alcohol":"","land":"","regio":"","subregio":"","appellatie":"","wijnmaker":"","druif":[],"opmerkingen":""} Vul alleen in wat je zeker weet van het etiket. druif is een array van strings. Geef ALLEEN de JSON terug, niets anders.'
+            }
           ]
         }]
       })
     });
 
+    if (!response.ok) {
+      const err = await response.text();
+      return res.status(500).json({ error: err });
+    }
+
     const data = await response.json();
     const text = data.content?.[0]?.text || '{}';
     const clean = text.replace(/```json|```/g, '').trim();
     const parsed = JSON.parse(clean);
-    return new Response(JSON.stringify(parsed), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    return res.status(200).json(parsed);
+
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+    return res.status(500).json({ error: err.message });
   }
 }
