@@ -379,7 +379,11 @@ function renderForm(){
         const mediaType=base64.split(';')[0].split(':')[1];
         const response=await fetch('/api/scan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image:imageData,mediaType})});
         const parsed=await response.json();
-        Object.assign(state.form,parsed,{foto:base64});
+        if(parsed.error){
+          alert('Scan fout: '+parsed.error+(parsed.detail?' - '+parsed.detail:''));
+        } else {
+          Object.assign(state.form,parsed,{foto:base64});
+        }
       } catch(err){/* foto bewaren */}
       doRender();
     };
