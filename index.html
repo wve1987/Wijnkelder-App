@@ -573,14 +573,33 @@ document.addEventListener('touchmove',e=>{if(_pinchActive&&e.touches.length===2&
 document.addEventListener('touchend',e=>{if(e.touches.length<2){_pinchActive=false;_pinchStart=null;}},{passive:true});
 
 // ── Auth listener ─────────────────────────────────────────
-sb.auth.onAuthStateChange(async(event,session)=>{
-  state.user=session?.user||null;
-  if(state.user){
-    await Promise.all([loadWijnen(),loadCustom()]);
+// Haal eerst bestaande sessie op, dan luister naar veranderingen
+async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  state.user = session?.user || null;
+  if (state.user) {
+    await Promise.all([loadWijnen(), loadCustom()]);
   }
-  state.loading=false;
+  state.loading = false;
   doRender();
-});
+
+  sb.auth.onAuthStateChange(async(event, session) => {
+    const newUser = session?.user || null;
+    const wasLoggedIn = !!state.user;
+    state.user = newUser;
+    if (state.user && !wasLoggedIn) {
+      await Promise.all([loadWijnen(), loadCustom()]);
+    }
+    if (!state.user) {
+      state.wijnen = [];
+      state.custom = {landen:[],druiven:[],bewaring:[],herkomst:[]};
+    }
+    state.loading = false;
+    doRender();
+  });
+}
+
+init();
 </script>
 </body>
 </html>
