@@ -84,7 +84,7 @@ export default async function handler(req, res) {
           messages: [
             { role: 'user', content: `Wijnetiket info: "${etikettekst}". Doe maximaal 1 zoekopdracht voor ontbrekende info. Geef daarna ALLEEN dit JSON terug: {"naam":"","categorie":"Rood|Wit|Rosé|Mousseux|Dessert|Fortified","jaar":"","alcohol":"","land":"","regio":"","subregio":"","appellatie":"","wijnmaker":"","druif":[],"opmerkingen":""} Opmerkingen maximaal 100 tekens. Alleen wat je zeker weet. ALLEEN JSON.` },
             { role: 'assistant', content: step2Data.content },
-            { role: 'user', content: [{ type: 'tool_result', tool_use_id: toolBlock.id, content: '' }] }
+            { role: 'user', content: [{ type: 'tool_result', tool_use_id: toolBlock.id, content: toolBlock.input ? JSON.stringify(toolBlock.input) : '' }] }
           ]
         })
       });
