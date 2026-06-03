@@ -144,9 +144,15 @@ async function saveWijnDb(wijn) {
     if (data && foto) data.foto = foto;
     return data;
   } else {
-    const {data, error} = await sb.from('wijnen').insert({...rest, user_id: state.user.id}).select().single();
-    if (error) throw new Error(JSON.stringify(error));
-    if (!data) throw new Error('Geen data terug van Supabase. user_id: ' + state.user.id + ' rest keys: ' + Object.keys(rest).join(','));
+    const insertData = {...rest, user_id: state.user.id};
+    // Log wat we versturen
+    const dataStr = JSON.stringify(insertData);
+    console.log('INSERT DATA LENGTH:', dataStr.length);
+    console.log('INSERT DATA:', dataStr.substring(0, 500));
+    
+    const {data, error} = await sb.from('wijnen').insert(insertData).select().single();
+    if (error) throw new Error('Supabase error: ' + JSON.stringify(error));
+    if (!data) throw new Error('Geen data. Verstuurd: ' + dataStr.substring(0, 200));
     if (data && foto) {
       localStorage.setItem('foto_' + data.id, foto);
       data.foto = foto;
