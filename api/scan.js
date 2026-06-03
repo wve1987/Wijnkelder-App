@@ -42,7 +42,7 @@ export default async function handler(req, res) {
     const step1Data = await step1.json();
     const etikettekst = step1Data.content?.[0]?.text || '';
 
-    // Stap 2: één web search + JSON output (zonder foto)
+    // Stap 2: web search + JSON output (server-side tool, geen stap 3 nodig)
     const step2 = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -54,46 +54,16 @@ export default async function handler(req, res) {
         model: 'claude-haiku-4-5',
         max_tokens: 800,
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-        tool_choice: { type: 'auto', disable_parallel_tool_use: true },
-        messages: [
-          {
-            role: 'user',
-            content: `Wijnetiket info: "${etikettekst}". Doe maximaal 1 zoekopdracht voor ontbrekende info. Geef daarna ALLEEN dit JSON terug: {"naam":"","categorie":"Rood|Wit|Rosé|Mousseux|Dessert|Fortified","jaar":"","alcohol":"","land":"","regio":"","subregio":"","appellatie":"","wijnmaker":"","druif":[],"opmerkingen":""} Opmerkingen maximaal 100 tekens. Alleen wat je zeker weet. ALLEEN JSON.`
-          }
-        ]
+        messages: [{
+          role: 'user',
+          content: `Wijnetiket info: "${etikettekst}". Zoek aanvullende info op en geef ALLEEN dit JSON terug: {"naam":"","categorie":"Rood|Wit|Rosé|Mousseux|Dessert|Fortified","jaar":"","alcohol":"","land":"","regio":"","subregio":"","appellatie":"","wijnmaker":"","druif":[],"opmerkingen":""} Opmerkingen maximaal 100 tekens. Alleen wat je zeker weet. ALLEEN JSON.`
+        }]
       })
     });
 
+    // Server-side web_search geeft altijd end_turn terug — geen stap 3 nodig
     const step2Data = await step2.json();
-
-    // Als er tool_use was, doe de follow-up zonder foto
-    let finalText = '';
-    if (step2Data.stop_reason === 'tool_use') {
-      const toolBlock = step2Data.content.find(b => b.type === 'tool_use');
-      const step3 = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': process.env.ANTHROPIC_API_KEY,
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({
-          model: 'claude-haiku-4-5',
-          max_tokens: 500,
-          tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-          messages: [
-            { role: 'user', content: `Wijnetiket info: "${etikettekst}". Doe maximaal 1 zoekopdracht voor ontbrekende info. Geef daarna ALLEEN dit JSON terug: {"naam":"","categorie":"Rood|Wit|Rosé|Mousseux|Dessert|Fortified","jaar":"","alcohol":"","land":"","regio":"","subregio":"","appellatie":"","wijnmaker":"","druif":[],"opmerkingen":""} Opmerkingen maximaal 100 tekens. Alleen wat je zeker weet. ALLEEN JSON.` },
-            { role: 'assistant', content: step2Data.content },
-            { role: 'user', content: [{ type: 'tool_result', tool_use_id: toolBlock.id, content: toolBlock.input ? JSON.stringify(toolBlock.input) : '' }] }
-          ]
-        })
-      });
-      const step3Data = await step3.json();
-      finalText = step3Data.content?.find(b => b.type === 'text')?.text || '{}';
-    } else {
-      finalText = step2Data.content?.find(b => b.type === 'text')?.text || '{}';
-    }
-
+    const finalText = step2Data.content?.find(b => b.type === 'text')?.text || '{}';
     const clean = finalText.replace(/```json|```/g, '').trim();
     const parsed = JSON.parse(clean);
     return res.status(200).json(parsed);
