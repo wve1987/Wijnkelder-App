@@ -113,16 +113,21 @@ async function saveCustom() {
   }
 }
 async function saveWijnDb(wijn) {
+  const t0 = Date.now();
   // Sla foto apart op in localStorage, niet in database (te groot)
-  const {id, foto, ...rest} = wijn;
+  const {id, foto, druif_single, druif_single_custom, land_custom, druif_single_custom_show, ...rest} = wijn;
   if (foto) localStorage.setItem('foto_' + (id||'new'), foto);
   
+  console.log('Saving to DB, keys:', Object.keys(rest).length, 'chars:', JSON.stringify(rest).length);
+  
   if (id && !String(id).startsWith('local')) {
-    const {data} = await sb.from('wijnen').update(rest).eq('id', id).select().single();
+    const {data, error} = await sb.from('wijnen').update(rest).eq('id', id).select().single();
+    console.log('Update done in', Date.now()-t0, 'ms', error);
     if (data && foto) data.foto = foto;
     return data;
   } else {
-    const {data} = await sb.from('wijnen').insert({...rest, user_id: state.user.id}).select().single();
+    const {data, error} = await sb.from('wijnen').insert({...rest, user_id: state.user.id}).select().single();
+    console.log('Insert done in', Date.now()-t0, 'ms', error);
     if (data && foto) {
       localStorage.setItem('foto_' + data.id, foto);
       data.foto = foto;
@@ -563,7 +568,8 @@ function doRender(){
   const waarde=wijnen.reduce((a,w)=>a+(parseFloat(w.prijs)||0)*w.hoeveelheid,0);
   const gefilterd=wijnen.filter(w=>{
     const q=search.toLowerCase();
-    return(!q||w.naam.toLowerCase().includes(q)||(w.wijnmaker||'').toLowerCase().includes(q)||(w.land||'').toLowerCase().includes(q))&&(!filterCat||w.categorie===filterCat);
+    const druifStr=(w.druif||[]).join(' ').toLowerCase();
+    return(!q||w.naam.toLowerCase().includes(q)||(w.wijnmaker||'').toLowerCase().includes(q)||(w.land||'').toLowerCase().includes(q)||druifStr.includes(q)||(w.jaar||'').includes(q))&&(!filterCat||w.categorie===filterCat);
   });
 
   // Header
@@ -583,8 +589,19 @@ function doRender(){
   header.appendChild(topRow);
 
   const searchInp=h('input',{type:'text',placeholder:'Zoeken...',value:search,style:{width:'100%',background:'#fff',border:'1px solid #e0d5cc',borderRadius:'8px',color:'#2a1a1a',padding:'8px 12px',fontSize:'13px',outline:'none',marginBottom:'10px',boxSizing:'border-box'}});
-  searchInp.addEventListener('input',e=>{state.search=e.target.value;});
-  searchInp.addEventListener('input',()=>{clearTimeout(searchInp._t);searchInp._t=setTimeout(()=>doRender(),300);});
+  searchInp.addEventListener('input',e=>{
+    state.search=e.target.value;
+    clearTimeout(searchInp._t);
+    searchInp._t=setTimeout(()=>{
+      // Bewaar cursor positie
+      const val=searchInp.value;
+      const sel=searchInp.selectionStart;
+      doRender();
+      // Herstel focus en cursor na render
+      const newInp=document.querySelector('input[placeholder="Zoeken..."]');
+      if(newInp){newInp.focus();try{newInp.setSelectionRange(sel,sel);}catch(e){}}
+    },300);
+  });
   header.appendChild(searchInp);
 
   const ROW1=['','Rood','Wit','Rosé'];
