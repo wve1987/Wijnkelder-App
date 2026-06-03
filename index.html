@@ -119,6 +119,10 @@ async function saveWijnDb(wijn) {
   const foto = wijn.foto;
   if (foto) localStorage.setItem('foto_' + (wijn.id||'new'), foto);
 
+  // Ververs sessie voor opslaan
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) throw new Error('Niet ingelogd - log opnieuw in');
+
   // Alleen DB velden meesturen, strings opschonen
   const rest = {};
   for (const k of DB_VELDEN) {
