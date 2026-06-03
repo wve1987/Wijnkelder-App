@@ -60,6 +60,12 @@ const SUPABASE_URL = 'https://ybxfqjngspzbpqucjoyd.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlieGZxam5nc3B6YnBxdWNqb3lkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwNTc5NTgsImV4cCI6MjA5NTYzMzk1OH0.GsvY6qiHtXtbuvrqgJX2n19fxrRFzhY7bSEcHp6J1bE';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+// Verwijder oude foto's uit localStorage om ruimte vrij te maken
+try {
+  const keys = Object.keys(localStorage).filter(k => k.startsWith('foto_'));
+  keys.forEach(k => localStorage.removeItem(k));
+} catch(e) {}
+
 const BASE_CATEGORIES = ["Rood","Wit","Rosé","Mousseux","Dessert","Fortified"];
 const BASE_LANDEN = ["Italië","Frankrijk","Spanje","Portugal","Duitsland","Oostenrijk","Nederland","Argentinië","Chili","Zuid-Afrika","Australië","Nieuw-Zeeland","VS","Anders"];
 const BASE_DRUIVEN = ["Cabernet Sauvignon","Merlot","Pinot Noir","Syrah/Shiraz","Sangiovese","Tempranillo","Nebbiolo","Chardonnay","Sauvignon Blanc","Riesling","Pinot Gris","Grenache","Malbec","Zinfandel","Viognier","Chenin Blanc","Anders"];
@@ -96,8 +102,7 @@ async function loadWijnen() {
   state.wijnen = (data||[]).map(r => ({
     ...r,
     druif: r.druif||[],
-    eten: r.eten||[],
-    foto: localStorage.getItem('foto_' + r.id) || null
+    eten: r.eten||[]
   }));
 }
 async function loadCustom() {
@@ -117,7 +122,6 @@ const DB_VELDEN = ['naam','categorie','jaar','prijs','capaciteit','alcohol','lan
 
 async function saveWijnDb(wijn) {
   const foto = wijn.foto;
-  if (foto) localStorage.setItem('foto_' + (wijn.id||'new'), foto);
 
   // Ververs sessie voor opslaan
   const { data: { session } } = await sb.auth.getSession();
@@ -149,7 +153,6 @@ async function saveWijnDb(wijn) {
     if (error) throw new Error(error.message + ' | code: ' + error.code + ' | status: ' + status + ' | hint: ' + (error.hint||'') + ' | details: ' + (error.details||''));
     if (!data) throw new Error('Geen data terug | status: ' + status + ' | ' + statusText);
     if (data && foto) {
-      localStorage.setItem('foto_' + data.id, foto);
       data.foto = foto;
     }
     return data;
@@ -617,21 +620,8 @@ function doRender(){
   topRow.appendChild(rightBtns);
   header.appendChild(topRow);
 
-  const searchInp=h('input',{type:'text',placeholder:'Zoeken...',value:search,style:{width:'100%',background:'#fff',border:'1px solid #e0d5cc',borderRadius:'8px',color:'#2a1a1a',padding:'8px 12px',fontSize:'13px',outline:'none',marginBottom:'10px',boxSizing:'border-box'}});
-  searchInp.addEventListener('input',e=>{
-    state.search=e.target.value;
-    clearTimeout(searchInp._t);
-    searchInp._t=setTimeout(()=>{
-      // Bewaar cursor positie
-      const val=searchInp.value;
-      const sel=searchInp.selectionStart;
-      doRender();
-      // Herstel focus en cursor na render
-      const newInp=document.querySelector('input[placeholder="Zoeken..."]');
-      if(newInp){newInp.focus();try{newInp.setSelectionRange(sel,sel);}catch(e){}}
-    },300);
-  });
-  header.appendChild(searchInp);
+  // Zoeken tijdelijk uitgeschakeld
+  // header.appendChild(searchInp);
 
   const ROW1=['','Rood','Wit','Rosé'];
   const ROW2=['Mousseux','Dessert','Fortified'];
