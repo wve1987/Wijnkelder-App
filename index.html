@@ -145,14 +145,9 @@ async function saveWijnDb(wijn) {
     return data;
   } else {
     const insertData = {...rest, user_id: state.user.id};
-    // Log wat we versturen
-    const dataStr = JSON.stringify(insertData);
-    console.log('INSERT DATA LENGTH:', dataStr.length);
-    console.log('INSERT DATA:', dataStr.substring(0, 500));
-    
-    const {data, error} = await sb.from('wijnen').insert(insertData).select().single();
-    if (error) throw new Error('Supabase error: ' + JSON.stringify(error));
-    if (!data) throw new Error('Geen data. Verstuurd: ' + dataStr.substring(0, 200));
+    const {data, error, status, statusText} = await sb.from('wijnen').insert(insertData).select().single();
+    if (error) throw new Error(error.message + ' | code: ' + error.code + ' | status: ' + status + ' | hint: ' + (error.hint||'') + ' | details: ' + (error.details||''));
+    if (!data) throw new Error('Geen data terug | status: ' + status + ' | ' + statusText);
     if (data && foto) {
       localStorage.setItem('foto_' + data.id, foto);
       data.foto = foto;
