@@ -488,6 +488,8 @@ function renderForm(){
     reader.onload=async ev=>{
       const base64=ev.target.result;
       state.form.foto=base64;
+      doRender();
+      /* SCAN TIJDELIJK UITGESCHAKELD - verwijder deze regel en de onderste */ return;
       fotoBox.innerHTML='';
       fotoBox.appendChild(h('div',{style:{textAlign:'center',color:'#8B1A1A'}},h('div',{style:{fontSize:'22px',marginBottom:'6px'}},'🔍'),h('div',{style:{fontSize:'12px'}},'Etiket herkennen...')));
       try {
