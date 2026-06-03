@@ -102,7 +102,8 @@ async function loadWijnen() {
   state.wijnen = (data||[]).map(r => ({
     ...r,
     druif: r.druif||[],
-    eten: r.eten||[]
+    eten: r.eten||[],
+    foto: r.foto_url || null
   }));
 }
 async function loadCustom() {
@@ -118,7 +119,37 @@ async function saveCustom() {
   }
 }
 // Alleen de velden die in de database bestaan
-const DB_VELDEN = ['naam','categorie','jaar','prijs','capaciteit','alcohol','land','regio','subregio','appellatie','wijnmaker','druif','eten','score','opslaglocatie','bewaring','herkomst','van_wie','url','opmerkingen','hoeveelheid'];
+const DB_VELDEN = ['naam','categorie','jaar','prijs','capaciteit','alcohol','land','regio','subregio','appellatie','wijnmaker','druif','eten','score','opslaglocatie','bewaring','herkomst','van_wie','url','opmerkingen','hoeveelheid','foto_url'];
+
+async function uploadFoto(base64, wijnId) {
+  try {
+    // Comprimeer naar 400px JPEG
+    const compressed = await new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => {
+        const maxSize = 400;
+        let w = img.width, h = img.height;
+        if (w > maxSize || h > maxSize) {
+          if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
+          else { w = Math.round(w * maxSize / h); h = maxSize; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.6));
+      };
+      img.src = base64;
+    });
+    // Converteer base64 naar blob
+    const res = await fetch(compressed);
+    const blob = await res.blob();
+    const path = state.user.id + '/' + wijnId + '.jpg';
+    const { error } = await sb.storage.from('fotos').upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
+    if (error) return null;
+    const { data } = sb.storage.from('fotos').getPublicUrl(path);
+    return data.publicUrl;
+  } catch(e) { return null; }
+}
 
 async function saveWijnDb(wijn) {
   const foto = wijn.foto;
@@ -145,15 +176,29 @@ async function saveWijnDb(wijn) {
   if (wijn.id && !String(wijn.id).startsWith('local')) {
     const {data, error} = await sb.from('wijnen').update(rest).eq('id', wijn.id).select().single();
     if (error) throw new Error(error.message + ' (code: ' + error.code + ')');
-    if (data && foto) data.foto = foto;
+    if (foto && !foto.startsWith('http')) {
+      const fotoUrl = await uploadFoto(foto, wijn.id);
+      if (fotoUrl) {
+        await sb.from('wijnen').update({foto_url: fotoUrl}).eq('id', wijn.id);
+        if (data) { data.foto_url = fotoUrl; data.foto = foto; }
+      }
+    } else if (data && foto) {
+      data.foto = foto;
+    }
     return data;
   } else {
     const insertData = {...rest, user_id: state.user.id};
-    const {data, error, status, statusText} = await sb.from('wijnen').insert(insertData).select().single();
-    if (error) throw new Error(error.message + ' | code: ' + error.code + ' | status: ' + status + ' | hint: ' + (error.hint||'') + ' | details: ' + (error.details||''));
-    if (!data) throw new Error('Geen data terug | status: ' + status + ' | ' + statusText);
-    if (data && foto) {
-      data.foto = foto;
+    const {data, error} = await sb.from('wijnen').insert(insertData).select().single();
+    if (error) throw new Error(error.message + ' | code: ' + error.code);
+    if (!data) throw new Error('Geen data terug van Supabase');
+    // Upload foto naar Storage
+    if (foto) {
+      const fotoUrl = await uploadFoto(foto, data.id);
+      if (fotoUrl) {
+        await sb.from('wijnen').update({foto_url: fotoUrl}).eq('id', data.id);
+        data.foto_url = fotoUrl;
+        data.foto = foto; // bewaar lokaal voor huidige sessie
+      }
     }
     return data;
   }
