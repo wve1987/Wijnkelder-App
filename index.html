@@ -489,7 +489,7 @@ function renderForm(){
       const base64=ev.target.result;
       state.form.foto=base64;
       doRender();
-      /* SCAN TIJDELIJK UITGESCHAKELD - verwijder deze regel en de onderste */ return;
+      return; /* SCAN UITGESCHAKELD - verwijder deze return om scan weer aan te zetten */
       fotoBox.innerHTML='';
       fotoBox.appendChild(h('div',{style:{textAlign:'center',color:'#8B1A1A'}},h('div',{style:{fontSize:'22px',marginBottom:'6px'}},'🔍'),h('div',{style:{fontSize:'12px'}},'Etiket herkennen...')));
       try {
@@ -667,8 +667,7 @@ function doRender(){
   topRow.appendChild(rightBtns);
   header.appendChild(topRow);
 
-  // Zoeken tijdelijk uitgeschakeld
-  // header.appendChild(searchInp);
+  header.appendChild(searchInp);
 
   const ROW1=['','Rood','Wit','Rosé'];
   const ROW2=['Mousseux','Dessert','Fortified'];
