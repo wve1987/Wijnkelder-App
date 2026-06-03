@@ -303,7 +303,7 @@ function selectEl(label,stateKey,options){
     document.querySelectorAll('.custom-dropdown-list').forEach(d=>d.style.display='none');
     dropdown.style.display=isOpen?'none':'block';
   });
-  document.addEventListener('click',()=>{dropdown.style.display='none';});
+  if(!window._globalDropdownClose){window._globalDropdownClose=true;document.addEventListener('click',()=>{document.querySelectorAll('.custom-dropdown-list').forEach(d=>d.style.display='none');});}
   const wrap=h('div',{style:{position:'relative'}},trigger,dropdown);
   if(value==='Anders'){
     const inp=h('input',{type:'text',placeholder:`Eigen ${label.toLowerCase()} toevoegen...`,style:{marginTop:'8px'}});
