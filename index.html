@@ -119,16 +119,29 @@ async function saveWijnDb(wijn) {
   const foto = wijn.foto;
   if (foto) localStorage.setItem('foto_' + (wijn.id||'new'), foto);
 
-  // Alleen DB velden meesturen
+  // Alleen DB velden meesturen, strings opschonen
   const rest = {};
-  for (const k of DB_VELDEN) rest[k] = wijn[k] !== undefined ? wijn[k] : null;
+  for (const k of DB_VELDEN) {
+    let val = wijn[k] !== undefined ? wijn[k] : null;
+    // Strings: verwijder null bytes en beperk lengte
+    if (typeof val === 'string') val = val.replace(/ /g, '').substring(0, 2000);
+    // Arrays: zorg dat het echte arrays zijn
+    if (k === 'druif' || k === 'eten') val = Array.isArray(val) ? val : [];
+    // Score: zorg dat het een integer is
+    if (k === 'score') val = parseInt(val) || 0;
+    // Hoeveelheid: zorg dat het een integer is
+    if (k === 'hoeveelheid') val = parseInt(val) || 1;
+    rest[k] = val;
+  }
 
   if (wijn.id && !String(wijn.id).startsWith('local')) {
-    const {data} = await sb.from('wijnen').update(rest).eq('id', wijn.id).select().single();
+    const {data, error} = await sb.from('wijnen').update(rest).eq('id', wijn.id).select().single();
+    if (error) throw new Error(error.message + ' (code: ' + error.code + ')');
     if (data && foto) data.foto = foto;
     return data;
   } else {
-    const {data} = await sb.from('wijnen').insert({...rest, user_id: state.user.id}).select().single();
+    const {data, error} = await sb.from('wijnen').insert({...rest, user_id: state.user.id}).select().single();
+    if (error) throw new Error(error.message + ' (code: ' + error.code + ')');
     if (data && foto) {
       localStorage.setItem('foto_' + data.id, foto);
       data.foto = foto;
