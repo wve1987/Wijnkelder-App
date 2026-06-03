@@ -128,7 +128,7 @@ async function saveWijnDb(wijn) {
   for (const k of DB_VELDEN) {
     let val = wijn[k] !== undefined ? wijn[k] : null;
     // Strings: verwijder null bytes en beperk lengte
-    if (typeof val === 'string') val = val.replace(/ /g, '').replace(/[ --]/g, '').substring(0, 500);
+    if (typeof val === 'string') val = (val || '').split('').filter(c => c.charCodeAt(0) > 31).join('').substring(0, 500);
     // Arrays: zorg dat het echte arrays zijn
     if (k === 'druif' || k === 'eten') val = Array.isArray(val) ? val : [];
     // Score: zorg dat het een integer is
