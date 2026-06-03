@@ -18,7 +18,7 @@ export default async function handler(req, res) {
     if (!mediaType) return res.status(400).json({ error: 'No mediaType received' });
     if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: 'API key not set' });
 
-    // Stap 1: lees het etiket
+    // Stap 1: lees het etiket (met foto, geen web search)
     const step1 = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -28,12 +28,12 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5',
-        max_tokens: 500,
+        max_tokens: 300,
         messages: [{
           role: 'user',
           content: [
             { type: 'image', source: { type: 'base64', media_type: mediaType, data: image } },
-            { type: 'text', text: 'Lees dit wijnetiket en geef een korte beschrijving: wijnaam, druif, jaar, land, regio, wijnmaker, alcohol. Alleen wat letterlijk op het etiket staat.' }
+            { type: 'text', text: 'Lees dit wijnetiket. Geef alleen wat letterlijk op het etiket staat: wijnaam, druif, jaar, land, regio, wijnmaker, alcohol. Kort en bondig.' }
           ]
         }]
       })
@@ -42,7 +42,7 @@ export default async function handler(req, res) {
     const step1Data = await step1.json();
     const etikettekst = step1Data.content?.[0]?.text || '';
 
-    // Stap 2: zoek aanvullende info op basis van de etikettekst (zonder foto)
+    // Stap 2: één web search + JSON output (zonder foto)
     const step2 = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -52,18 +52,21 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5',
-        max_tokens: 1000,
+        max_tokens: 800,
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-        messages: [{
-          role: 'user',
-          content: `Op basis van deze wijninformatie van het etiket: "${etikettekst}" - zoek aanvullende informatie op en geef ALLEEN een JSON object terug. Formaat: {"naam":"","categorie":"Rood|Wit|Rosé|Mousseux|Dessert|Fortified","jaar":"","alcohol":"","land":"","regio":"","subregio":"","appellatie":"","wijnmaker":"","druif":[],"opmerkingen":""} druif is een array. Geef ALLEEN JSON terug, geen uitleg.`
-        }]
+        tool_choice: { type: 'auto', disable_parallel_tool_use: true },
+        messages: [
+          {
+            role: 'user',
+            content: `Wijnetiket info: "${etikettekst}". Doe maximaal 1 zoekopdracht voor ontbrekende info. Geef daarna ALLEEN dit JSON terug: {"naam":"","categorie":"Rood|Wit|Rosé|Mousseux|Dessert|Fortified","jaar":"","alcohol":"","land":"","regio":"","subregio":"","appellatie":"","wijnmaker":"","druif":[],"opmerkingen":""} Alleen wat je zeker weet. ALLEEN JSON.`
+          }
+        ]
       })
     });
 
     const step2Data = await step2.json();
 
-    // Verwerk tool_use als dat nodig is
+    // Als er tool_use was, doe de follow-up zonder foto
     let finalText = '';
     if (step2Data.stop_reason === 'tool_use') {
       const toolBlock = step2Data.content.find(b => b.type === 'tool_use');
@@ -76,10 +79,10 @@ export default async function handler(req, res) {
         },
         body: JSON.stringify({
           model: 'claude-haiku-4-5',
-          max_tokens: 1000,
+          max_tokens: 500,
           tools: [{ type: 'web_search_20250305', name: 'web_search' }],
           messages: [
-            { role: 'user', content: `Op basis van deze wijninformatie van het etiket: "${etikettekst}" - zoek aanvullende informatie op en geef ALLEEN een JSON object terug. Formaat: {"naam":"","categorie":"Rood|Wit|Rosé|Mousseux|Dessert|Fortified","jaar":"","alcohol":"","land":"","regio":"","subregio":"","appellatie":"","wijnmaker":"","druif":[],"opmerkingen":""} druif is een array. Geef ALLEEN JSON terug, geen uitleg.` },
+            { role: 'user', content: `Wijnetiket info: "${etikettekst}". Doe maximaal 1 zoekopdracht voor ontbrekende info. Geef daarna ALLEEN dit JSON terug: {"naam":"","categorie":"Rood|Wit|Rosé|Mousseux|Dessert|Fortified","jaar":"","alcohol":"","land":"","regio":"","subregio":"","appellatie":"","wijnmaker":"","druif":[],"opmerkingen":""} Alleen wat je zeker weet. ALLEEN JSON.` },
             { role: 'assistant', content: step2Data.content },
             { role: 'user', content: [{ type: 'tool_result', tool_use_id: toolBlock.id, content: '' }] }
           ]
