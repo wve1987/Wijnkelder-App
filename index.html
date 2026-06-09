@@ -303,7 +303,7 @@ function selectEl(label,stateKey,options){
     document.querySelectorAll('.custom-dropdown-list').forEach(d=>d.style.display='none');
     dropdown.style.display=isOpen?'none':'block';
   });
-  if(!window._globalDropdownClose){window._globalDropdownClose=true;document.addEventListener('click',()=>{document.querySelectorAll('.custom-dropdown-list').forEach(d=>d.style.display='none');});}
+  document.addEventListener('click',()=>{dropdown.style.display='none';});
   const wrap=h('div',{style:{position:'relative'}},trigger,dropdown);
   if(value==='Anders'){
     const inp=h('input',{type:'text',placeholder:`Eigen ${label.toLowerCase()} toevoegen...`,style:{marginTop:'8px'}});
@@ -374,7 +374,6 @@ async function saveWijn(){
   if(state.form.druif_single==='Anders'&&state.form.druif_single_custom){await addCustom('druiven',state.form.druif_single_custom);state.form.druif_single=state.form.druif_single_custom;}
   if(state.form.druif_single&&state.form.druif_single!=='Anders') state.form.druif=[state.form.druif_single];
   state.saving=true; doRender();
-  // Foto wordt lokaal opgeslagen, niet in database
   try {
     const saved=await Promise.race([
       saveWijnDb(state.form),
@@ -469,7 +468,6 @@ function renderForm(){
       const base64=ev.target.result;
       state.form.foto=base64;
       doRender();
-      return; /* SCAN UITGESCHAKELD - verwijder deze return om scan weer aan te zetten */
       fotoBox.innerHTML='';
       fotoBox.appendChild(h('div',{style:{textAlign:'center',color:'#8B1A1A'}},h('div',{style:{fontSize:'22px',marginBottom:'6px'}},'🔍'),h('div',{style:{fontSize:'12px'}},'Etiket herkennen...')));
       try {
@@ -711,7 +709,6 @@ document.addEventListener('touchmove',e=>{if(_pinchActive&&e.touches.length===2&
 document.addEventListener('touchend',e=>{if(e.touches.length<2){_pinchActive=false;_pinchStart=null;}},{passive:true});
 
 // ── Auth listener ─────────────────────────────────────────
-// Haal eerst bestaande sessie op, dan luister naar veranderingen
 async function init() {
   const { data: { session } } = await sb.auth.getSession();
   state.user = session?.user || null;
